@@ -401,5 +401,3 @@ Okta-OIE-Spike/
 - [@okta/okta-auth-js](https://github.com/okta/okta-auth-js)
 
 ---
-
-*Tech Core · SSO Team · Vizient*
