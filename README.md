@@ -393,11 +393,204 @@ Okta-OIE-Spike/
 
 ---
 
-## References
+# 🏦 Understanding DPoP — A Bank Vault Analogy
 
-- [Okta Developer Docs — DPoP](https://developer.okta.com/docs/guides/dpop/main/)
-- [RFC 9449 — OAuth 2.0 DPoP](https://datatracker.ietf.org/doc/html/rfc9449)
-- [RFC 7636 — PKCE](https://datatracker.ietf.org/doc/html/rfc7636)
-- [@okta/okta-auth-js](https://github.com/okta/okta-auth-js)
+Let's use a **bank vault** analogy to make everything click.
+
+---
+
+## The Problem DPoP Solves
+
+Imagine you go to the bank and get a **vault key** (regular Bearer access token).
+
+If someone steals that key on the way out — **game over**. That person opens the vault as if they were you. The bank has no way to tell the difference.
+
+**DPoP solves this:**
+
+> The bank now gives you a key that only works with your **fingerprint**. Even if someone steals the key, without your fingerprint it opens nothing.
+
+That "fingerprint" is the **cryptographic private key** that only exists on your device.
+
+---
+
+## The 3 Characters
+
+| Character | In the real world | In the PoC |
+|---|---|---|
+| 🏦 **Bank** | Issues and validates identity | **Okta** |
+| 📱 **You** | Wants to access the vault | **Angular (browser)** |
+| 🏢 **Bank Manager** | Trusted intermediary | **.NET Backend** |
+
+---
+
+## Flow 1 — PKCE without DPoP (the simplest)
+
+> **Analogy:** You go to the bank, prove who you are, get the vault key, and walk away with it in your pocket.
+
+```
+You (Angular)           Bank (Okta)
+     │                      │
+     │── "I want in" ──────►│
+     │◄── "Please log in" ──│
+     │── Username/Password ─►│
+     │◄── Key (token) ──────│
+     │
+     │ 🔑 Stores the key in pocket (browser)
+```
+
+**Risk:** If someone picks your pocket (intercepts the token), they use the key as if they were you.
+
+---
+
+## Flow 2 — PKCE Back-End (manager exchanges the key)
+
+> **Analogy:** You go to the bank, but instead of picking up the key yourself, you hand your **ticket number** to the **manager**. The manager goes to the vault, picks up the key, and hands it to you.
+
+```
+You (Angular)      Manager (.NET)       Bank (Okta)
+     │                   │                   │
+     │── Login ───────────────────────────►│
+     │◄── Ticket number ──────────────────│
+     │── "Manager, use this ticket" ──────►│
+     │                   │── Goes to bank with ticket ──►│
+     │                   │◄── Key (token) ───────────────│
+     │◄── Key ───────────│                   │
+```
+
+**Advantage:** The manager can verify things before handing you the key.
+
+---
+
+## Flow 3 — PKCE + DPoP: Front-End ⭐
+
+> **Analogy:** Before going to the bank, you go to a special machine and **register your fingerprint**. The bank issues a key that only works with that fingerprint. Even if someone steals the key, they need your hand.
+
+```
+You (Angular)                      Bank (Okta)
+     │                                  │
+     ├── 🔑 Generates key pair           │
+     │      (public + private)           │
+     │      via WebCrypto API            │
+     │                                  │
+     │── Login ───────────────────────►│
+     │◄── Ticket number ───────────────│
+     │                                  │
+     ├── 📝 Creates "DPoP Proof"         │
+     │      Signed with private key:     │
+     │      • Which URL it's accessing   │
+     │      • Which method (POST/GET)    │
+     │      • Timestamp (prevents replay)│
+     │      • Unique ID (prevents dupes) │
+     │                                  │
+     │── Token request ────────────────►│
+     │      Authorization: DPoP <proof> │
+     │                                  │
+     │◄── Token with cnf.jkt ──────────│
+     │       (fingerprint embedded       │
+     │        inside the token)          │
+```
+
+The token now contains:
+
+```json
+{
+  "cnf": {
+    "jkt": "hash_of_your_public_key"
+  }
+}
+```
+
+> If someone steals this token and tries to use it — the server will ask for a DPoP proof signed with the private key. Since the attacker does not have the private key, **access denied**.
+
+---
+
+## Flow 4 — PKCE + DPoP: Back-End (manager + fingerprint)
+
+> **Analogy:** You register your fingerprint and create the proof, but you hand everything to the **manager** to exchange at the bank. The manager does not create the fingerprint — he just presents it to the bank on your behalf.
+
+```
+You (Angular)         Manager (.NET)          Bank (Okta)
+     │                      │                      │
+     ├── Generates keys 🔑   │                      │
+     │                      │                      │
+     │── Login ──────────────────────────────────►│
+     │◄── Ticket number ─────────────────────────│
+     │                      │                      │
+     ├── Creates DPoP Proof 📝                      │
+     │                      │                      │
+     │── "Manager, use this" ──►│                  │
+     │   ticket + DPoP proof    │                  │
+     │                      │── Presents to bank ──►│
+     │                      │   (forwards DPoP proof)│
+     │                      │◄── DPoP Token ────────│
+     │◄── Token ────────────│                      │
+```
+
+**Key point:** The private key **never leaves the browser**. The manager only presents the proof, never creates it.
+
+---
+
+## Flow 5 — Web Application (manager does everything)
+
+> **Analogy:** You do not even go to the bank. You tell the manager you want to access the vault. The manager has the **bank master password** (Client Secret), generates his own fingerprint, and handles everything for you. The result comes back in a **sealed envelope** that only you can open (HttpOnly cookie).
+
+```
+You (Browser)       Manager (.NET)          Bank (Okta)
+     │                    │                      │
+     │── "I want in" ─────►│                     │
+     │                    │── Redirects to login ──────►│
+     │── Login on Okta page ────────────────────────────►│
+     │                    │◄── Ticket number (goes to manager!)│
+     │                    │                      │
+     │                    ├── Manager generates 🔑│
+     │                    │   its own DPoP proof  │
+     │                    │                      │
+     │                    │── POST /token ───────►│
+     │                    │   client_id           │
+     │                    │   client_secret 🔐    │
+     │                    │   DPoP proof          │
+     │                    │◄── DPoP Token ────────│
+     │                    │                      │
+     │                    ├── Stores in 🍪 HttpOnly cookie
+     │◄── Cookie ──────────│  (JS cannot access, HTTPS only)
+     │
+     │ Angular reads the cookie and displays the token
+```
+
+**Most secure because:**
+- Client Secret stays server-side only
+- Token is stored in a cookie unreachable by JavaScript
+- Even an XSS attack cannot steal the token
+
+---
+
+## Summary of All 5 Flows
+
+| Flow | DPoP Proof Created By | Token Exchanged By | Token Type | Security |
+|---|---|---|---|---|
+| 1 — PKCE Front-End | ❌ No DPoP | Angular | `Bearer` | ⭐⭐ |
+| 2 — PKCE Back-End | ❌ No DPoP | .NET | `Bearer` | ⭐⭐⭐ |
+| 3 — DPoP Front-End | ✅ Angular | Angular | `DPoP` | ⭐⭐⭐⭐ |
+| 4 — DPoP Back-End | ✅ Angular | .NET | `DPoP` | ⭐⭐⭐⭐ |
+| 5 — Web App | ✅ .NET | .NET | `DPoP` | ⭐⭐⭐⭐⭐ |
+
+---
+
+## The Question That Ties It All Together
+
+> **"If someone intercepts my DPoP token, what happens?"**
+
+The attacker tries to use the token on an API:
+
+```
+Authorization: DPoP <stolen_token>
+DPoP: <fake_or_missing_proof>
+```
+
+The server checks:
+
+1. The token has `cnf.jkt` = hash of the original public key
+2. The DPoP proof must be **signed by the corresponding private key**
+3. The attacker does not have the private key → **access denied** ✅
 
 ---
