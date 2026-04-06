@@ -1,8 +1,6 @@
 # 🔐 Okta OIE Authentication Flows — Developer Guide
 
-> **Area:** Tech Core \ SSO | **Story:** #1194878 | **Status:** Active
-
-This repository demonstrates five OAuth 2.0 / OpenID Connect (OIDC) authentication flows using Okta's Identity Engine (OIE), including **DPoP (Demonstrating Proof of Possession)** token binding. It is intended as a reference implementation for developers across all squads who need to understand SSO authentication and Okta integration.
+This repository demonstrates five OAuth 2.0 / OpenID Connect (OIDC) authentication flows using Okta's Identity Engine (OIE), including **DPoP (Demonstrating Proof of Possession)** token binding.
 
 ---
 
