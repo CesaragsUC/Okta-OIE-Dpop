@@ -1,0 +1,31 @@
+<div class="callback-container">
+    <h2 *ngIf="loading">🔄 Waiting for authentication...</h2>
+    <h2 *ngIf="!loading && loginSuccess">✅ Login Successful!</h2>
+    <h2 *ngIf="!loading && loginSuccess === false">❌ Login Failed!</h2>
+  
+    <ng-container *ngIf="!loading">
+      <p *ngIf="accessToken">
+        <strong>🔑 Raw Access Token:</strong> <br>
+        <code>{{ accessToken }}</code>
+      </p>
+  
+      <div *ngIf="decodedToken">
+        <strong>📜 Decoded Access Token (JWT Payload):</strong> <br>
+        <pre>{{ decodedToken | json }}</pre>
+      </div>
+  
+      <div class="login-steps">
+        <h3>🔄 Selected Login Flow:</h3>
+        <ul>
+          <li *ngFor="let step of loginSteps">{{ step }}</li>
+        </ul>
+      </div>
+  
+      <div *ngIf="accessToken">
+        <app-token-validator [accessToken]="accessToken" [clientId]="clientId" [oktaAuth]="oktaAuth"></app-token-validator>
+      </div>
+  
+      <button *ngIf="loginSuccess" (click)="logout()">Logout</button>
+      <button *ngIf="!loginSuccess" (click)="logout()">Back</button>
+    </ng-container>
+  </div>

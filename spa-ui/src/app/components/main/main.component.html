@@ -1,0 +1,30 @@
+<div class="main-container">
+  <h1>🔐Login to Okta OIE With:</h1>  
+  <h5>Requires backend service on http://localhost:30303</h5> 
+  <!-- Authentication buttons -->
+  <div class="auth-buttons">
+    <button (click)="showLoginDetailsInfo('pkceFrontEndAccessToken')">
+      <span>OIDC Single-Page-App<br>PKCE: Front End Access Token</span>
+    </button>      
+    <button (click)="showLoginDetailsInfo('pkceBackEndAccessToken')">
+      <span>OIDC Single-Page-App<br>PKCE: Back End Access Token</span>
+    </button>
+    <button (click)="showLoginDetailsInfo('dpopPkceFrontEndAccessToken')">
+      <span>OIDC Single-Page-App<br>PKCE: Front End Access Token + DPop</span>
+    </button>
+    <button (click)="showLoginDetailsInfo('dpopPkceBackEndAccessToken')">
+      <span>OIDC Single-Page-App<br>PKCE: Back End Access Token + DPop</span>
+    </button>
+    <button (click)="showLoginDetailsInfo('client-credentials-back-end-access-token')">
+      <span>OIDC Single-Page-App<br>OIDC: Web Application Back End Access Token</span>
+    </button>
+  </div>
+  <!-- Show PKCE login confirmation -->
+  <div *ngIf="showLoginDetails" class="pkce-confirmation">
+    <h3 [innerHTML]="loginDetailsText"></h3>
+    <p><code>🔗 Okta URL:</code> {{ oktaIssuer }}</p>
+    <p><code>🆔 Client ID:</code> {{ clientId }}</p>
+    <p><code>🔄 Redirect URI:</code> {{ redirectUri }}</p>
+    <button (click)="login()">Login</button>
+  </div>
+</div>
